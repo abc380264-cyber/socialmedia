@@ -678,11 +678,69 @@
             cursor: pointer;
             transition: all 0.3s;
             margin-top: 10px;
+            position: relative;
         }
 
         .submit-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 30px rgba(108, 99, 255, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .submit-btn.loading::after {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            top: 50%;
+            left: 50%;
+            margin-left: -10px;
+            margin-top: -10px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spinner 0.8s linear infinite;
+        }
+
+        @keyframes spinner {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Success Message */
+        .success-message {
+            display: none;
+            background: rgba(0, 200, 83, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 20px;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        .error-message {
+            display: none;
+            background: rgba(255, 107, 107, 0.1);
+            border: 1px solid var(--secondary);
+            color: var(--secondary);
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+
+        .error-message.active {
+            display: block;
         }
 
         /* Section Divider with CTA */
@@ -733,23 +791,6 @@
                 width: 100%;
                 justify-content: center;
             }
-        }
-
-        /* Success Message */
-        .success-message {
-            display: none;
-            background: rgba(0, 200, 83, 0.1);
-            border: 1px solid var(--success);
-            color: var(--success);
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            margin-top: 20px;
-        }
-
-        .success-message.active {
-            display: block;
-            animation: slideIn 0.5s ease-out;
         }
 
         /* Footer */
@@ -1203,12 +1244,11 @@
             <h2>🚀 Start Your Growth Journey</h2>
             <p class="modal-subtitle">Fill out the form below and we'll contact you within 2 hours to discuss your custom strategy.</p>
             
-            <form id="leadForm" action="https://formsubmit.co/abc380264@gmail.com" method="POST">
+            <form id="leadForm">
                 <!-- FormSubmit Configuration -->
                 <input type="hidden" name="_subject" value="New Lead from Social Media Landing Page!">
                 <input type="hidden" name="_captcha" value="false">
                 <input type="hidden" name="_template" value="table">
-                <input type="hidden" name="_next" value="https://yourusername.github.io/social-media/thank-you.html">
                 
                 <div class="form-group">
                     <label for="name">Full Name *</label>
@@ -1256,12 +1296,17 @@
                     <textarea id="message" name="message" rows="3" placeholder="Not getting engagement, no sales from social media, don't have time to post..."></textarea>
                 </div>
 
-                <button type="submit" class="submit-btn">
+                <button type="submit" class="submit-btn" id="submitBtn">
                     📩 Submit Application - We'll Call You Within 2 Hours!
                 </button>
 
                 <div class="success-message" id="successMessage">
-                    ✅ Application Submitted! Check your email for confirmation. We'll call you shortly!
+                    ✅ Application Submitted Successfully!<br>
+                    <small>Check your email for confirmation. We'll call you within 2 hours!</small>
+                </div>
+
+                <div class="error-message" id="errorMessage">
+                    ❌ Something went wrong. Please try again or call us directly.
                 </div>
             </form>
         </div>
@@ -1318,17 +1363,56 @@
 
         document.querySelectorAll('.fade-in').forEach((el) => observer.observe(el));
 
-        // Form Handling
-        document.getElementById('leadForm').addEventListener('submit', function(e) {
-            // Show success message after submission
-            setTimeout(() => {
-                document.getElementById('successMessage').classList.add('active');
-                this.reset();
-                setTimeout(() => {
-                    closeModal();
-                    document.getElementById('successMessage').classList.remove('active');
-                }, 3000);
-            }, 500);
+        // AJAX Form Submission - No Redirect!
+        document.getElementById('leadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const successMsg = document.getElementById('successMessage');
+            const errorMsg = document.getElementById('errorMessage');
+            const form = this;
+            
+            // Reset messages
+            successMsg.classList.remove('active');
+            errorMsg.classList.remove('active');
+            
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
+            submitBtn.innerHTML = 'Submitting...';
+            
+            try {
+                // Create form data
+                const formData = new FormData(form);
+                
+                // Submit to FormSubmit via AJAX (no redirect)
+                const response = await fetch('https://formsubmit.co/ajax/abc380264@gmail.com', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    // Show success message
+                    successMsg.classList.add('active');
+                    form.reset();
+                    
+                    // Close modal after 3 seconds
+                    setTimeout(() => {
+                        closeModal();
+                        successMsg.classList.remove('active');
+                    }, 3000);
+                } else {
+                    throw new Error('Submission failed');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                errorMsg.classList.add('active');
+            } finally {
+                // Reset button
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+                submitBtn.innerHTML = '📩 Submit Application - We\'ll Call You Within 2 Hours!';
+            }
         });
 
         // Phone number formatting
@@ -1342,7 +1426,7 @@
         document.addEventListener('mouseout', function(e) {
             if (!exitIntentShown && e.clientY < 10 && !document.getElementById('leadModal').classList.contains('active')) {
                 exitIntentShown = true;
-                // You can uncomment below to show popup on exit intent
+                // Uncomment below to show popup on exit intent
                 // openModal();
             }
         });
